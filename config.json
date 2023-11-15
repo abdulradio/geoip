@@ -86,6 +86,59 @@
       }
     },
     {
+      "type": "v2rayGeoIPDat",
+      "action": "output",
+      "args": {
+        "oneFilePerList": true,
+        "wantedList": ["ru", "by", "private"]
+      }
+    },
+    {
+      "type": "maxmindMMDB",
+      "action": "output",
+      "args": {
+        "outputName": "Country.mmdb",
+        "overwriteList": [
+          "ru",
+          "by",
+          "private",
+          "cloudflare",
+          "cloudfront",
+          "facebook",
+          "fastly",
+          "google",
+          "netflix",
+          "telegram",
+          "twitter"
+        ]
+      }
+    },
+    {
+      "type": "maxmindMMDB",
+      "action": "output",
+      "args": {
+        "outputName": "Country-only-ru-by-private.mmdb",
+        "wantedList": ["ru", "by", "private"]
+      }
+    },
+    {
+      "type": "maxmindMMDB",
+      "action": "output",
+      "args": {
+        "outputName": "Country-asn.mmdb",
+        "wantedList": [
+          "cloudflare",
+          "cloudfront",
+          "facebook",
+          "fastly",
+          "google",
+          "netflix",
+          "telegram",
+          "twitter"
+        ]
+      }
+    },
+    {
       "type": "text",
       "action": "output"
     }
