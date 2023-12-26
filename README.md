@@ -8,26 +8,25 @@ This project releases GeoIP files automatically every Thursday. It also provides
 
 ```json
 "routing":
+{
+    "domainStrategy": "IPIfNonMatch",
+    "domainMatcher": "hybrid",
+    "rules": [
       {
-        "domainStrategy": "IPIfNonMatch",
-        "domainMatcher": "hybrid",
-        "rules": [
-        
-		{
-          "ip": ["geoip:telegram"],
-          "outboundTag": "proxy",
-		  "type": "field"
-        },
-		{
-          "ip": [ "geoip:private", "geoip:ru"],
-          "outboundTag": "direct",
-		  "type": "field"
-        },
-		{
-          "type": "field",
-          "network": "udp",
-          "ip": ["geoip:google"],
-          "outboundTag": "direct"
-        }
-      ]
-    }
+        "ip": ["geoip:telegram"],
+        "outboundTag": "proxy",
+         "type": "field"
+      },
+      {
+        "ip": [ "geoip:private", "geoip:ru"],
+        "outboundTag": "direct",
+         "type": "field"
+      },
+      {
+        "type": "field",
+        "network": "udp",
+        "ip": ["geoip:google"],
+        "outboundTag": "direct"
+      }
+    ]
+}
