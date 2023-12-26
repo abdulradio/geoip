@@ -1,8 +1,6 @@
 # GeoIP RU
 
-geoip contains databases of IP addresses of Russia and Belarus - from MaxMind, cloudflare, cloudfront, facebook, fastly, google, netflix, telegram, twitter.
-
-This project releases GeoIP files automatically every Thursday. It also provides a command line interface(CLI) for users to customize their own GeoIP files, included but not limited to V2Ray dat format file `geoip.dat` and MaxMind mmdb format file `Country.mmdb`.
+geoip contains databases of IP addresses of Russia and Belarus(MaxMind), cloudflare, cloudfront, facebook, fastly, google, netflix, telegram, twitter.
 
 ## Example xray rules geoip.dat
 
