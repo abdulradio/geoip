@@ -38,7 +38,7 @@
       "action": "add",
       "args": {
         "name": "ripe_by",
-        "inputDir": "./data/ip_BY.lst"
+        "uri": "https://github.com/abdulradio/geoip/blob/master/ripe/ip_BY.lst"
       }
     },
 	{
@@ -46,7 +46,7 @@
       "action": "add",
       "args": {
         "name": "ripe_ru",
-        "inputDir": "./data/ip_RU.lst"
+        "uri": "https://github.com/abdulradio/geoip/blob/master/ripe/ip_RU.lst"
       }
     },
     {
