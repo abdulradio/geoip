@@ -37,40 +37,16 @@
       "type": "text",
       "action": "add",
       "args": {
-        "name": "annexed",
-        "uri": "https://suip.biz/?act=all-country-ip&province=Crimea&all-download"
+        "name": "ripe_by",
+        "inputDir": "./data/ip_BY.lst"
       }
     },
 	{
       "type": "text",
       "action": "add",
       "args": {
-        "name": "annexed",
-        "uri": "https://suip.biz/?act=all-country-ip&province=Kherson%20Oblast&all-download"
-      }
-    },
-	{
-      "type": "text",
-      "action": "add",
-      "args": {
-        "name": "annexed",
-        "uri": "https://suip.biz/?act=all-country-ip&province=Donetsk&all-download"
-      }
-    },
-	{
-      "type": "text",
-      "action": "add",
-      "args": {
-        "name": "annexed",
-        "uri": "https://suip.biz/?act=all-country-ip&province=Luhansk&all-download"
-      }
-    },
-	{
-      "type": "text",
-      "action": "add",
-      "args": {
-        "name": "annexed",
-        "uri": "https://suip.biz/?act=all-country-ip&province=Zaporizhzhya%20Oblast&all-download"
+        "name": "ripe_ru",
+        "inputDir": "./data/ip_RU.lst"
       }
     },
     {
@@ -92,9 +68,8 @@
       "args": {
         "outputName": "geoip.dat",
         "wantedList": [
-          "ru",
-          "by",
-		  "annexed",
+          "ripe_ru",
+          "ripe_by",
           "google",
           "telegram",
           "private"
@@ -106,7 +81,7 @@
       "action": "output",
       "args": {
         "outputName": "geoip-only-ru-by-private.dat",
-        "wantedList": ["ru", "by", "annexed", "private"]
+        "wantedList": ["ripe_ru", "ripe_by", "private"]
       }
     },
     {
@@ -132,9 +107,8 @@
       "args": {
         "outputName": "Country.mmdb",
         "overwriteList": [
-          "ru",
-          "by",
-		  "annexed",
+          "ripe_ru",
+          "ripe_by",
           "private",
           "cloudflare",
           "cloudfront",
@@ -152,7 +126,7 @@
       "action": "output",
       "args": {
         "outputName": "Country-only-ru-by-private.mmdb",
-        "wantedList": ["ru", "by", "annexed", "private"]
+        "wantedList": ["ripe_ru", "ripe_by", "private"]
       }
     },
     {
