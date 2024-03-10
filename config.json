@@ -129,6 +129,20 @@
         "wantedList": ["ripe_ru", "ripe_by", "private"]
       }
     },
+	{
+      "type": "maxmindMMDB",
+      "action": "output",
+      "args": {
+        "outputName": "geoip.mmdb",
+        "wantedList": [
+			"ripe_ru", 
+			"ripe_by",
+            "google",
+            "telegram",			
+			"private"
+		]
+      }
+    },
     {
       "type": "maxmindMMDB",
       "action": "output",
