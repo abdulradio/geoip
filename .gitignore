@@ -14,9 +14,10 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
-tmp/
-data/
+#tmp/
+#data/
 geolite2/
 output/
-geoip
 ripe/
+geoip
+
