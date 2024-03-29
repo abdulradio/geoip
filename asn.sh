@@ -22,9 +22,6 @@ while IFS= read -r line; do
   done
 done <${input}
 
-rm data/ip_RU.lst
-rm data/ip_BY.lst
-
 url_ru="https://stat.ripe.net/data/country-resource-list/data.json?resource=RU"
 url_by="https://stat.ripe.net/data/country-resource-list/data.json?resource=BY"
 
