@@ -21,3 +21,16 @@ while IFS= read -r line; do
     jq --raw-output '.data.prefixes.v6.originating[]' ./tmp/${filename}-${asn}.txt | sort -u >>${file}
   done
 done <${input}
+
+url_ru="https://stat.ripe.net/data/country-resource-list/data.json?resource=RU"
+url_by="https://stat.ripe.net/data/country-resource-list/data.json?resource=BY"
+
+echo "Generating RU CIDR list..."
+curl -sL url_ru -o ./ripe/ip_RU.txt \
+      -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
+    jq --raw-output '.data.resources.ipv4[]' ./ripe/ip_RU.txt | sort -u >>ip_RU.lst
+
+echo "Generating BY CIDR list..."
+curl -sL url_by -o ./ripe/ip_BY.txt \
+      -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
+    jq --raw-output '.data.resources.ipv4[]' ./ripe/ip_BY.txt | sort -u >>ip_BY.lst
