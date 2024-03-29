@@ -47,26 +47,4 @@ aggregate_prefixes | while read -r line; do
   number_of_ips=$((number_of_ips + $(awk -F'/' '{print 2^(32-$2)}' <<< "$line")))
   echo "$line"
 done > ripe/ip_RU.lst
-
-ripe_ip=$(curl -s "$url_by" | jq -r '.data.resources.ipv4[]')
-
-for record in $ripe_ip; do
-  if [[ "$record" == *-* ]]; then
-    ips=($(echo "$record" | tr '-' ' '))
-    for ((ip=$(printf '%d' "$(echo "${ips[0]}" | tr . '\n' | awk '{s = s * 256 + $1} END {print s}')" ); ip <= $(printf '%d' "$(echo "${ips[1]}" | tr . '\n' | awk '{s = s * 256 + $1} END {print s}')" ); ip++ )); do
-      printf -v ipaddr "%d.%d.%d.%d\n" "$((ip >> 24 & 255))" "$((ip >> 16 & 255))" "$((ip >> 8 & 255))" "$((ip & 255))"
-      networks+=("$ipaddr")
-    done
-  else
-    networks+=("$record")
-  fi
-done
-
-aggregate_prefixes() {
-  printf '%s\n' "${networks[@]}" | sort -t . -k 1,1n -k 2,2n -k 3,3n -k 4,4n | awk -F. 'BEGIN{OFS="."} {mask=32; while(and($1,1)==and($1,2^mask)) {mask--;$1=int($1/2)}; print $1,$2,$3,$4"/"(32-mask)}'
-}
-
-aggregate_prefixes | while read -r line; do
-  number_of_ips=$((number_of_ips + $(awk -F'/' '{print 2^(32-$2)}' <<< "$line")))
-  echo "$line"
-done > ripe/ip_BY.lst
+echo "Fetching RU CIDR..."
