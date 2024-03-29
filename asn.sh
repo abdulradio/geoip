@@ -22,29 +22,55 @@ while IFS= read -r line; do
   done
 done <${input}
 
-url_ru="https://stat.ripe.net/data/country-resource-list/data.json?resource=RU"
-url_by="https://stat.ripe.net/data/country-resource-list/data.json?resource=BY"
+# Функция для получения и сохранения IP-адресов в формате CIDR
+get_save_cidr() {
+    local country_code="$1"
+    local output_file="$2"
+    local url="https://stat.ripe.net/data/country-resource-list/data.json?resource=$country_code"
 
-ripe_ip=$(curl -s "$url_ru" | jq -r '.data.resources.ipv4[]')
+    # Получаем список IP-адресов IPv4 для указанной страны
+    ipv4_addresses=$(curl -s "$url" | jq -r '.data.resources.ipv4[]')
 
-for record in $ripe_ip; do
-  if [[ "$record" == *-* ]]; then
-    ips=($(echo "$record" | tr '-' ' '))
-    for ((ip=$(printf '%d' "$(echo "${ips[0]}" | tr . '\n' | awk '{s = s * 256 + $1} END {print s}')" ); ip <= $(printf '%d' "$(echo "${ips[1]}" | tr . '\n' | awk '{s = s * 256 + $1} END {print s}')" ); ip++ )); do
-      printf -v ipaddr "%d.%d.%d.%d\n" "$((ip >> 24 & 255))" "$((ip >> 16 & 255))" "$((ip >> 8 & 255))" "$((ip & 255))"
-      networks+=("$ipaddr")
+    # Сохраняем список IP-адресов в формате CIDR в файл
+    for ip in $ipv4_addresses; do
+        if [[ "$ip" == *-* ]]; then
+            ips=($(echo "$ip" | tr '-' ' '))
+            start_ip="${ips[0]}"
+            end_ip="${ips[1]}"
+            cidr=$(convert_to_cidr "$start_ip" "$end_ip")
+            echo "$cidr" >> "$output_file"
+        else
+            echo "$ip" >> "$output_file"
+        fi
     done
-  else
-    networks+=("$record")
-  fi
-done
-
-aggregate_prefixes() {
-  printf '%s\n' "${networks[@]}" | sort -t . -k 1,1n -k 2,2n -k 3,3n -k 4,4n | awk -F. 'BEGIN{OFS="."} {mask=32; while(and($1,1)==and($1,2^mask)) {mask--;$1=int($1/2)}; print $1,$2,$3,$4"/"(32-mask)}'
 }
 
-aggregate_prefixes | while read -r line; do
-  number_of_ips=$((number_of_ips + $(awk -F'/' '{print 2^(32-$2)}' <<< "$line")))
-  echo "$line"
-done > ripe/ip_RU.lst
-echo "Fetching RU CIDR..."
+# Функция для преобразования IP-адресов в формат CIDR
+convert_to_cidr() {
+    local start_ip="$1"
+    local end_ip="$2"
+    
+    # Преобразование IP-адресов в целочисленное представление
+    start=$(IFS=. read -r a b c d <<< "$start_ip"; printf "%d\n" "$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))")
+    end=$(IFS=. read -r a b c d <<< "$end_ip"; printf "%d\n" "$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))")
+    
+    # Вычисление длины префикса CIDR
+    prefix_len=0
+    while [ $((start & 1)) -eq $((end & 1)) ]; do
+        ((prefix_len++))
+        start=$((start >> 1))
+        end=$((end >> 1))
+    done
+    
+    # Формирование CIDR
+    network=$(IFS=. read -r a b c d <<< "$start_ip"; printf "%d.%d.%d.%d/%d\n" "$a" "$b" "$c" "$d" "$((32 - prefix_len))")
+    echo "$network"
+}
+
+# Сохраняем список IP-адресов IPv4 для страны RU
+get_save_cidr "RU" "ripe/ip_RU.lst"
+
+# Сохраняем список IP-адресов IPv4 для страны BY
+get_save_cidr "BY" "ripe/ip_RU.lst"
+
+echo "Списки IP-адресов для стран RU и BY сохранены в соответствующих файлах"
