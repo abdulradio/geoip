@@ -72,6 +72,7 @@
           "ripe_by",
           "google",
           "telegram",
+		  "facebook",
           "private"
         ]
       }
