@@ -139,7 +139,8 @@
 			"ripe_ru", 
 			"ripe_by",
             "google",
-            "telegram",			
+            "telegram",
+			"facebook",
 			"private"
 		]
       }
