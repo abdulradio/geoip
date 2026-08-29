@@ -67,7 +67,6 @@ jobs:
           go mod tidy
           go run ./
 
-      # --- 1. Установка бинарника sing-box ---
       - name: Install sing-box CLI
         run: |
           SING_BOX_VERSION=$(curl -s https://api.github.com/repos/SagerNet/sing-box/releases/latest | jq -r .tag_name | sed 's/v//')
@@ -75,21 +74,18 @@ jobs:
           mv sing-box-*/sing-box /usr/local/bin/
           rm -rf sing-box-*
 
-      # --- 2. Компиляция файлов geoip-*.srs напрямую из папки data/ ---
+      # Хэширование srs убрано
       - name: Compile geoip-*.srs for Sing-Box
         run: |
           mkdir -p ./tmp/json_rules publish
 
-          # Пробегаем по всем исходным файлам категорий из папки data/
           for file in ./data/*; do
             if [ -f "$file" ]; then
               cat_name=$(basename "$file")
               echo "Processing category: ${cat_name} -> geoip-${cat_name}.srs"
 
-              # Преобразуем список IP/CIDR из текстового файла в JSON-массив
               jq -R -s -c 'split("\n") | map(select(length > 0 and (startswith("#") | not)))' "$file" > ./tmp/ip_list.json
 
-              # Формируем валидный JSON Rule-Set для sing-box
               jq -n --slurpfile ips ./tmp/ip_list.json '{
                 version: 1,
                 rules: [
@@ -99,11 +95,7 @@ jobs:
                 ]
               }' > ./tmp/rule_${cat_name}.json
 
-              # Компилируем в бинарный .srs
               sing-box rule-set compile ./tmp/rule_${cat_name}.json -o ./publish/geoip-${cat_name}.srs
-              
-              # Создаем SHA256 хэш
-              sha256sum ./publish/geoip-${cat_name}.srs > ./publish/geoip-${cat_name}.srs.sha256sum
             fi
           done
 
@@ -162,8 +154,9 @@ jobs:
             curl -i "https://purge.jsdelivr.net/gh/${{ github.repository }}@release/${file}"
           done
 
-      - name: Remove extra archives before Release upload
-        run: rm -rf ./publish/*.{gz,zip} ./publish/text
+      # Удаляем архивы, папки, а также .mmdb перед выгрузкой в GitHub Release
+      - name: Remove extra archives and mmdb files before Release upload
+        run: rm -rf ./publish/*.{gz,zip} ./publish/text ./publish/*.mmdb ./publish/*.mmdb.sha256sum
 
       - name: Upload files to GitHub release
         uses: svenstaro/upload-release-action@v2
