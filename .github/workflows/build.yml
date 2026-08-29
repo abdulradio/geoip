@@ -64,6 +64,7 @@ jobs:
 
       - name: Build geoip files
         run: |
+          go mod tidy
           go run ./
 
       - name: Verify mmdb files
