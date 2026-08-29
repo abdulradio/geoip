@@ -19,7 +19,7 @@ if [ -f "$input" ]; then
 
     echo "==================================="
     echo "Generating ${filename} CIDR list..."
-    rm -f "${file}" && touch "${file}"
+    rm -f "${file}" "${file}.tmp" && touch "${file}"
 
     for asn in "${asns[@]}"; do
       # Убираем пробелы, если есть
@@ -56,30 +56,32 @@ get_save_cidr() {
 
     echo "Fetching country resources for ${country_code}..."
     local json_file="./tmp/country-${country_code}.json"
+    rm -f "${output_file}.tmp"
     curl -sL --retry 3 "$url" -o "$json_file"
 
     # Извлекаем список IPv4
     jq -r '.data.resources.ipv4[]? // empty' "$json_file" | while read -r ip; do
         if [[ "$ip" == *-* ]]; then
-            # Надежная конвертация диапазона IP (start-end) в CIDR через ipcalc
-            ipcalc "$ip" | grep -v 'Deaggregating' | awk '{print $1}' >> "${output_file}.tmp"
+            # Заменяем дефис на пробел для правильного вызова ipcalc
+            start_ip=$(echo "$ip" | cut -d'-' -f1)
+            end_ip=$(echo "$ip" | cut -d'-' -f2)
+            ipcalc "$start_ip" "$end_ip" | grep -v 'Deaggregating' | awk '{print $1}' >> "${output_file}.tmp"
         else
             echo "$ip" >> "${output_file}.tmp"
         fi
     done
+
+    # Сортируем и сохраняем итоговый файл для страны
+    if [ -f "${output_file}.tmp" ]; then
+        sort -u "${output_file}.tmp" > "$output_file"
+        rm -f "${output_file}.tmp"
+    else
+        touch "$output_file"
+    fi
 }
 
-output_ripe="ripe/ip_RU.lst"
-rm -f "$output_ripe" "${output_ripe}.tmp"
+# Генерируем раздельные файлы, требуемые Go-сборщиком
+get_save_cidr "RU" "ripe/ip_RU.lst"
+get_save_cidr "BY" "ripe/ip_BY.lst"
 
-# Собираем RU и BY
-get_save_cidr "RU" "$output_ripe"
-get_save_cidr "BY" "$output_ripe"
-
-# Сортируем и убираем дубликаты
-if [ -f "${output_ripe}.tmp" ]; then
-    sort -u "${output_ripe}.tmp" > "$output_ripe"
-    rm -f "${output_ripe}.tmp"
-fi
-
-echo "Done! Final list saved to $output_ripe"
+echo "Done! Individual files saved to ripe/ip_RU.lst and ripe/ip_BY.lst"
