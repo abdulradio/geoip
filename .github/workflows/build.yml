@@ -53,6 +53,17 @@ jobs:
           curl -sSL https://api.fastly.com/public-ip-list | jq --raw-output '.addresses[],.ipv6_addresses[]' >> data/fastly
           curl -sSL https://ip-ranges.amazonaws.com/ip-ranges.json | jq --raw-output '.prefixes[],.ipv6_prefixes[] | select(.service == "CLOUDFRONT") | .ip_prefix,.ipv6_prefix' | grep "/" >> data/cloudfront
 
+      - name: Fetch RU and BY IP ranges from NRO Combined Stats
+        run: |
+          mkdir -p ripe data ./tmp
+          curl -sSL https://ftp.ripe.net/pub/stats/ripencc/nro-stats/latest/combined-stat -o ./tmp/combined-stat
+
+          # Сбор IPv4 для России (RU) со всех 5 регистраторов
+          grep -E "\|RU\|ipv4\|" ./tmp/combined-stat | awk -F'|' 'BEGIN{OFS="/"}{ if ($5>0) print $4, 32-log($5)/log(2) }' > ripe/ip_RU.lst
+
+          # Сбор IPv4 для Беларуси (BY) со всех 5 регистраторов
+          grep -E "\|BY\|ipv4\|" ./tmp/combined-stat | awk -F'|' 'BEGIN{OFS="/"}{ if ($5>0) print $4, 32-log($5)/log(2) }' > ripe/ip_BY.lst
+     
       - name: Get GeoLite2 CSV
         env:
           LICENSE_KEY: ${{ secrets.MAXMIND_GEOLITE2_LICENSE }}
