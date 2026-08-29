@@ -25,58 +25,24 @@ while IFS= read -r line || [ -n "$line" ]; do
   done
 done <${input}
 
-# Функция для преобразования IP-адресов в формат CIDR
-convert_to_cidr() {
-    local start_ip="$1"
-    local end_ip="$2"
-    
-    # Преобразование IP-адресов в целочисленное представление
-    start=$(IFS=. read -r a b c d <<< "$start_ip"; printf "%d\n" "$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))")
-    end=$(IFS=. read -r a b c d <<< "$end_ip"; printf "%d\n" "$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))")
-    
-    # Вычисление длины префикса CIDR
-    prefix_len=0
-    while [ $((start & 1)) -eq $((end & 1)) ]; do
-        ((prefix_len++))
-        start=$((start >> 1))
-        end=$((end >> 1))
-    done
-    
-    # Формирование CIDR
-    network=$(IFS=. read -r a b c d <<< "$start_ip"; printf "%d.%d.%d.%d/%d\n" "$a" "$b" "$c" "$d" "$((32 - prefix_len))")
-    echo "$network"
-}
+# 2. Быстрое получение списков IP по странам через реестр NRO (All RIRs)
+echo "==================================="
+echo "Fetching full country stats from NRO Combined dataset..."
+curl -sSL https://ftp.ripe.net/pub/stats/ripencc/nro-stats/latest/combined-stat -o ./tmp/combined-stat
 
-# Функция для получения и сохранения IP-адресов в формате CIDR
-get_save_cidr() {
-    local country_code="$1"
-    local output_file="$2"
-    local url="https://stat.ripe.net/data/country-resource-list/data.json?resource=$country_code"
+# Сохраняем IPv4 и IPv6 для RU в ripe/ip_RU.lst (и дублируем в data/ru, если ваш Go-билдер берет оттуда)
+echo "Generating RU IP list..."
+> ripe/ip_RU.lst
+grep -E "\|RU\|ipv4\|" ./tmp/combined-stat | awk -F'|' 'BEGIN{OFS="/"}{ if ($5>0) print $4, 32-log($5)/log(2) }' >> ripe/ip_RU.lst
+grep -E "\|RU\|ipv6\|" ./tmp/combined-stat | awk -F'|' '{print $4"/"$5}' >> ripe/ip_RU.lst
+cp ripe/ip_RU.lst data/ru 2>/dev/null || true
 
-    # Очищаем или создаем целевой файл
-    > "$output_file"
+# Сохраняем IPv4 и IPv6 для BY в ripe/ip_BY.lst
+echo "Generating BY IP list..."
+> ripe/ip_BY.lst
+grep -E "\|BY\|ipv4\|" ./tmp/combined-stat | awk -F'|' 'BEGIN{OFS="/"}{ if ($5>0) print $4, 32-log($5)/log(2) }' >> ripe/ip_BY.lst
+grep -E "\|BY\|ipv6\|" ./tmp/combined-stat | awk -F'|' '{print $4"/"$5}' >> ripe/ip_BY.lst
+cp ripe/ip_BY.lst data/by 2>/dev/null || true
 
-    # Получаем список IP-адресов IPv4 для указанной страны
-    ipv4_addresses=$(curl -s "$url" | jq -r '.data.resources.ipv4[]? // empty')
-
-    # Сохраняем список IP-адресов в формате CIDR в файл
-    for ip in $ipv4_addresses; do
-        if [[ "$ip" == *-* ]]; then
-            ips=($(echo "$ip" | tr '-' ' '))
-            start_ip="${ips[0]}"
-            end_ip="${ips[1]}"
-            cidr=$(convert_to_cidr "$start_ip" "$end_ip")
-            echo "$cidr" >> "$output_file"
-        else
-            echo "$ip" >> "$output_file"
-        fi
-    done
-}
-
-# Сохраняем список IP-адресов IPv4 для страны RU
-get_save_cidr "RU" "ripe/ip_RU.lst"
-
-# Сохраняем список IP-адресов IPv4 для страны BY (ИСПРАВЛЕНО имя файла)
-get_save_cidr "BY" "ripe/ip_BY.lst"
-
-echo "Списки IP-адресов для стран RU и BY сохранены в соответствующих файлах"
+echo "==================================="
+echo "Списки IP-адресов для стран RU и BY успешно созданы!"
