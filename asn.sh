@@ -1,87 +1,82 @@
 #!/usr/bin/env bash
-set -e
 
 input="./asn.csv"
 mkdir -p ./tmp ./data ./ripe
 
-# ----------------------------------------------------
-# 1. Сбор IP по ASN (RIPE RIS Prefixes)
-# ----------------------------------------------------
-if [ -f "$input" ]; then
-  while IFS= read -r line || [ -n "$line" ]; do
-    # Пропускаем пустые строки и комментарии
-    [[ -z "$line" || "$line" =~ ^# ]] && continue
+# 1. Сбор по ASN
+while IFS= read -r line || [ -n "$line" ]; do
+  [[ -z "$line" || "$line" =~ ^# ]] && continue
 
-    filename=$(echo "$line" | awk -F ',' '{print $1}')
-    asns_str=$(echo "$line" | awk -F ',' '{print $2}')
-    IFS='|' read -r -a asns <<< "$asns_str"
-    file="data/${filename}"
+  filename=$(echo ${line} | awk -F ',' '{print $1}')
+  IFS='|' read -r -a asns <<<$(echo ${line} | awk -F ',' '{print $2}')
+  file="data/${filename}"
 
-    echo "==================================="
-    echo "Generating ${filename} CIDR list..."
-    rm -f "${file}" "${file}.tmp" && touch "${file}"
+  echo "==================================="
+  echo "Generating ${filename} CIDR list..."
+  rm -rf ${file} && touch ${file}
+  for asn in ${asns[@]}; do
+    url="https://stat.ripe.net/data/ris-prefixes/data.json?list_prefixes=true&types=o&resource=${asn}"
+    echo "-----------------------"
+    echo "Fetching ${asn}..."
+    curl -sL ${url} -o ./tmp/${filename}-${asn}.txt \
+      -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
+    jq --raw-output '.data.prefixes.v4.originating[]? // empty' ./tmp/${filename}-${asn}.txt | sort -u >>${file}
+    jq --raw-output '.data.prefixes.v6.originating[]? // empty' ./tmp/${filename}-${asn}.txt | sort -u >>${file}
+  done
+done <${input}
 
-    for asn in "${asns[@]}"; do
-      # Убираем пробелы, если есть
-      asn=$(echo "$asn" | xargs)
-      [ -z "$asn" ] && continue
-
-      url="https://stat.ripe.net/data/ris-prefixes/data.json?list_prefixes=true&types=o&resource=${asn}"
-      echo "Fetching ${asn}..."
-      
-      tmp_file="./tmp/${filename}-${asn}.txt"
-      curl -sL --retry 3 "${url}" -o "$tmp_file" \
-        -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-
-      if [ -s "$tmp_file" ]; then
-        jq -r '.data.prefixes.v4.originating[]? // empty' "$tmp_file" >> "${file}.tmp"
-        jq -r '.data.prefixes.v6.originating[]? // empty' "$tmp_file" >> "${file}.tmp"
-      fi
+# Функция для преобразования IP-адресов в формат CIDR
+convert_to_cidr() {
+    local start_ip="$1"
+    local end_ip="$2"
+    
+    # Преобразование IP-адресов в целочисленное представление
+    start=$(IFS=. read -r a b c d <<< "$start_ip"; printf "%d\n" "$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))")
+    end=$(IFS=. read -r a b c d <<< "$end_ip"; printf "%d\n" "$((a * 256 ** 3 + b * 256 ** 2 + c * 256 + d))")
+    
+    # Вычисление длины префикса CIDR
+    prefix_len=0
+    while [ $((start & 1)) -eq $((end & 1)) ]; do
+        ((prefix_len++))
+        start=$((start >> 1))
+        end=$((end >> 1))
     done
+    
+    # Формирование CIDR
+    network=$(IFS=. read -r a b c d <<< "$start_ip"; printf "%d.%d.%d.%d/%d\n" "$a" "$b" "$c" "$d" "$((32 - prefix_len))")
+    echo "$network"
+}
 
-    if [ -f "${file}.tmp" ]; then
-      sort -u "${file}.tmp" > "${file}"
-      rm -f "${file}.tmp"
-    fi
-  done < "${input}"
-fi
-
-# ----------------------------------------------------
-# 2. Сбор IP по странам (RIPE Country Resource List)
-# ----------------------------------------------------
+# Функция для получения и сохранения IP-адресов в формате CIDR
 get_save_cidr() {
     local country_code="$1"
     local output_file="$2"
     local url="https://stat.ripe.net/data/country-resource-list/data.json?resource=$country_code"
 
-    echo "Fetching country resources for ${country_code}..."
-    local json_file="./tmp/country-${country_code}.json"
-    rm -f "${output_file}.tmp"
-    curl -sL --retry 3 "$url" -o "$json_file"
+    # Очищаем или создаем целевой файл
+    > "$output_file"
 
-    # Извлекаем список IPv4
-    jq -r '.data.resources.ipv4[]? // empty' "$json_file" | while read -r ip; do
+    # Получаем список IP-адресов IPv4 для указанной страны
+    ipv4_addresses=$(curl -s "$url" | jq -r '.data.resources.ipv4[]? // empty')
+
+    # Сохраняем список IP-адресов в формате CIDR в файл
+    for ip in $ipv4_addresses; do
         if [[ "$ip" == *-* ]]; then
-            # Заменяем дефис на пробел для правильного вызова ipcalc
-            start_ip=$(echo "$ip" | cut -d'-' -f1)
-            end_ip=$(echo "$ip" | cut -d'-' -f2)
-            ipcalc "$start_ip" "$end_ip" | grep -v 'Deaggregating' | awk '{print $1}' >> "${output_file}.tmp"
+            ips=($(echo "$ip" | tr '-' ' '))
+            start_ip="${ips[0]}"
+            end_ip="${ips[1]}"
+            cidr=$(convert_to_cidr "$start_ip" "$end_ip")
+            echo "$cidr" >> "$output_file"
         else
-            echo "$ip" >> "${output_file}.tmp"
+            echo "$ip" >> "$output_file"
         fi
     done
-
-    # Сортируем и сохраняем итоговый файл для страны
-    if [ -f "${output_file}.tmp" ]; then
-        sort -u "${output_file}.tmp" > "$output_file"
-        rm -f "${output_file}.tmp"
-    else
-        touch "$output_file"
-    fi
 }
 
-# Генерируем раздельные файлы, требуемые Go-сборщиком
+# Сохраняем список IP-адресов IPv4 для страны RU
 get_save_cidr "RU" "ripe/ip_RU.lst"
+
+# Сохраняем список IP-адресов IPv4 для страны BY (ИСПРАВЛЕНО имя файла)
 get_save_cidr "BY" "ripe/ip_BY.lst"
 
-echo "Done! Individual files saved to ripe/ip_RU.lst and ripe/ip_BY.lst"
+echo "Списки IP-адресов для стран RU и BY сохранены в соответствующих файлах"
