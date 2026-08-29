@@ -25,24 +25,24 @@ while IFS= read -r line || [ -n "$line" ]; do
   done
 done <${input}
 
-# 2. Быстрое получение списков IP по странам через реестр NRO (All RIRs)
+# 2. Быстрое получение списков IP по странам через реестр NRO Combined
 echo "==================================="
 echo "Fetching full country stats from NRO Combined dataset..."
 curl -sSL https://ftp.ripe.net/pub/stats/ripencc/nro-stats/latest/combined-stat -o ./tmp/combined-stat
 
-# Сохраняем IPv4 и IPv6 для RU в ripe/ip_RU.lst (и дублируем в data/ru, если ваш Go-билдер берет оттуда)
+# Формируем диапазоны RU
 echo "Generating RU IP list..."
 > ripe/ip_RU.lst
-grep -E "\|RU\|ipv4\|" ./tmp/combined-stat | awk -F'|' 'BEGIN{OFS="/"}{ if ($5>0) print $4, 32-log($5)/log(2) }' >> ripe/ip_RU.lst
+grep -E "\|RU\|ipv4\|" ./tmp/combined-stat | awk -F'|' 'BEGIN{OFS="/"}{ if ($5>0) print $4, 32-int(log($5)/log(2) + 0.5) }' >> ripe/ip_RU.lst
 grep -E "\|RU\|ipv6\|" ./tmp/combined-stat | awk -F'|' '{print $4"/"$5}' >> ripe/ip_RU.lst
 cp ripe/ip_RU.lst data/ru 2>/dev/null || true
 
-# Сохраняем IPv4 и IPv6 для BY в ripe/ip_BY.lst
+# Формируем диапазоны BY
 echo "Generating BY IP list..."
 > ripe/ip_BY.lst
-grep -E "\|BY\|ipv4\|" ./tmp/combined-stat | awk -F'|' 'BEGIN{OFS="/"}{ if ($5>0) print $4, 32-log($5)/log(2) }' >> ripe/ip_BY.lst
+grep -E "\|BY\|ipv4\|" ./tmp/combined-stat | awk -F'|' 'BEGIN{OFS="/"}{ if ($5>0) print $4, 32-int(log($5)/log(2) + 0.5) }' >> ripe/ip_BY.lst
 grep -E "\|BY\|ipv6\|" ./tmp/combined-stat | awk -F'|' '{print $4"/"$5}' >> ripe/ip_BY.lst
 cp ripe/ip_BY.lst data/by 2>/dev/null || true
 
 echo "==================================="
-echo "Списки IP-адресов для стран RU и BY успешно созданы!"
+echo "Готово! Все файлы подготовлены."
