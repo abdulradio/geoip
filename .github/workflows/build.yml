@@ -1,4 +1,5 @@
 name: Build geoip files
+
 on:
   workflow_dispatch:
   schedule:
@@ -12,6 +13,7 @@ on:
       - "LICENSE"
       - "README.md"
       - ".github/dependabot.yml"
+
 jobs:
   build:
     name: Build
@@ -23,9 +25,14 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version-file: ./go.mod
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq ipcalc curl
 
       - name: Set variables
         run: |
@@ -40,12 +47,13 @@ jobs:
 
       - name: Append more CIDRs
         run: |
+          mkdir -p data
           curl -sSL https://www.gstatic.com/ipranges/goog.json | jq --raw-output '.prefixes[].ipv4Prefix,.prefixes[].ipv6Prefix | select(. != null)' >> data/google
           curl -sSL https://www.gstatic.com/ipranges/cloud.json | jq --raw-output '.prefixes[].ipv4Prefix,.prefixes[].ipv6Prefix | select(. != null)' >> data/google
           curl -sSL https://api.fastly.com/public-ip-list | jq --raw-output '.addresses[],.ipv6_addresses[]' >> data/fastly
           curl -sSL https://ip-ranges.amazonaws.com/ip-ranges.json | jq --raw-output '.prefixes[],.ipv6_prefixes[] | select(.service == "CLOUDFRONT") | .ip_prefix,.ipv6_prefix' | grep "/" >> data/cloudfront
 
-      - name: Get GeoLite2
+      - name: Get GeoLite2 CSV
         env:
           LICENSE_KEY: ${{ secrets.MAXMIND_GEOLITE2_LICENSE }}
         run: |
@@ -80,20 +88,19 @@ jobs:
             sha256sum ${name} > ./${name}.sha256sum
           done
 
-      - name: Download GeoLite2
+      - name: Download extra GeoLite2 databases for release
         env:
           LICENSE_KEY: ${{ secrets.MAXMIND_GEOLITE2_LICENSE }}
         run: |
           curl -L "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN&license_key=${LICENSE_KEY}&suffix=tar.gz" -o GeoLite2-ASN.tar.gz
           curl -L "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN-CSV&license_key=${LICENSE_KEY}&suffix=zip" -o GeoLite2-ASN-CSV.zip
           curl -L "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=${LICENSE_KEY}&suffix=tar.gz" -o GeoLite2-Country.tar.gz
-          curl -L "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&license_key=${LICENSE_KEY}&suffix=zip" -o GeoLite2-Country-CSV.zip
 
       - name: Move files to publish directory
         run: |
           mkdir -p publish
-          mv ./output/dat/*.dat ./output/dat/*.sha256sum ./output/maxmind/*.mmdb ./output/maxmind/*.sha256sum *.gz *.zip ./publish/
-          cp -fpPR ./output/text ./publish
+          mv ./output/dat/*.dat ./output/dat/*.sha256sum ./output/maxmind/*.mmdb ./output/maxmind/*.sha256sum *.gz *.zip ./publish/ 2>/dev/null || true
+          if [ -d "./output/text" ]; then cp -fpPR ./output/text ./publish; fi
 
       - name: Git push assets to "release" branch
         run: |
@@ -114,7 +121,7 @@ jobs:
             curl -i "https://purge.jsdelivr.net/gh/${{ github.repository }}@release/${file}"
           done
 
-      - name: Remove some files to avoid publishing to GitHub release
+      - name: Remove extra archives before Release upload
         run: rm -rf ./publish/*.{gz,zip} ./publish/text
 
       - name: Upload files to GitHub release
