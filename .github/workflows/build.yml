@@ -67,42 +67,29 @@ jobs:
           go mod tidy
           go run ./
 
-      # --- 1. Установка утилит sing-box и v2fly geoip ---
-      - name: Install sing-box and v2fly geoip CLI
+      # --- 1. Установка бинарника sing-box ---
+      - name: Install sing-box CLI
         run: |
           SING_BOX_VERSION=$(curl -s https://api.github.com/repos/SagerNet/sing-box/releases/latest | jq -r .tag_name | sed 's/v//')
           curl -sSL "https://github.com/SagerNet/sing-box/releases/download/v${SING_BOX_VERSION}/sing-box-${SING_BOX_VERSION}-linux-amd64.tar.gz" | tar -xz
           mv sing-box-*/sing-box /usr/local/bin/
           rm -rf sing-box-*
 
-          go install github.com/v2fly/geoip/cmd/geoip@latest
-
-      # --- 2. Распаковка geoip.dat и компиляция в geoip-*.srs ---
-      - name: Export categories from geoip.dat to geoip-*.srs
+      # --- 2. Компиляция файлов geoip-*.srs напрямую из папки data/ ---
+      - name: Compile geoip-*.srs for Sing-Box
         run: |
-          mkdir -p ./tmp/extracted_dat ./tmp/json_rules publish
+          mkdir -p ./tmp/json_rules publish
 
-          # Берём сгенерированный geoip.dat из папки ./output/dat/
-          DAT_FILE="./output/dat/geoip.dat"
-
-          if [ ! -f "$DAT_FILE" ]; then
-            echo "Ошибка: Файл $DAT_FILE не найден!"
-            exit 1
-          fi
-
-          # Извлекаем все категории
-          $(go env GOPATH)/bin/geoip export -c "$DAT_FILE" -dir ./tmp/extracted_dat
-
-          # Конвертируем каждую категорию в geoip-*.srs
-          for file in ./tmp/extracted_dat/*; do
+          # Пробегаем по всем исходным файлам категорий из папки data/
+          for file in ./data/*; do
             if [ -f "$file" ]; then
               cat_name=$(basename "$file")
               echo "Processing category: ${cat_name} -> geoip-${cat_name}.srs"
 
-              # Преобразуем CIDR в JSON
-              jq -R -s -c 'split("\n") | map(select(length > 0))' "$file" > ./tmp/ip_list.json
+              # Преобразуем список IP/CIDR из текстового файла в JSON-массив
+              jq -R -s -c 'split("\n") | map(select(length > 0 and (startswith("#") | not)))' "$file" > ./tmp/ip_list.json
 
-              # Формируем структуру правила
+              # Формируем валидный JSON Rule-Set для sing-box
               jq -n --slurpfile ips ./tmp/ip_list.json '{
                 version: 1,
                 rules: [
@@ -112,10 +99,10 @@ jobs:
                 ]
               }' > ./tmp/rule_${cat_name}.json
 
-              # Сохраняем сразу в папку publish/
+              # Компилируем в бинарный .srs
               sing-box rule-set compile ./tmp/rule_${cat_name}.json -o ./publish/geoip-${cat_name}.srs
               
-              # Хэшируем srs файл
+              # Создаем SHA256 хэш
               sha256sum ./publish/geoip-${cat_name}.srs > ./publish/geoip-${cat_name}.srs.sha256sum
             fi
           done
