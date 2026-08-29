@@ -1,8 +1,8 @@
 module github.com/Loyalsoldier/geoip
 
-go 1.21
+go 1.24.0
 
-toolchain go1.21.10
+toolchain go1.24.0
 
 require (
 	github.com/maxmind/mmdbwriter v1.0.0
