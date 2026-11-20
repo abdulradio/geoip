@@ -1,15 +1,6 @@
 {
   "input": [
     {
-      "type": "maxmindGeoLite2CountryCSV",
-      "action": "add",
-      "args": {
-        "country": "./geolite2/GeoLite2-Country-Locations-en.csv",
-        "ipv4": "./geolite2/GeoLite2-Country-Blocks-IPv4.csv",
-        "ipv6": "./geolite2/GeoLite2-Country-Blocks-IPv6.csv"
-      }
-    },
-    {
       "type": "text",
       "action": "add",
       "args": {
@@ -33,22 +24,6 @@
         "uri": "https://core.telegram.org/resources/cidr.txt"
       }
     },
-	{
-      "type": "text",
-      "action": "add",
-      "args": {
-        "name": "ripe_by",
-        "uri": "./ripe/ip_BY.lst"
-      }
-    },
-	{
-      "type": "text",
-      "action": "add",
-      "args": {
-        "name": "ripe_ru",
-        "uri": "./ripe/ip_RU.lst" 
-      }
-    },
     {
       "type": "text",
       "action": "add",
@@ -68,11 +43,11 @@
       "args": {
         "outputName": "geoip.dat",
         "wantedList": [
-          "ripe_ru",
-          "ripe_by",
+          "ru",
+          "by",
           "google",
           "telegram",
-		  "facebook",
+          "facebook",
           "private"
         ]
       }
@@ -82,7 +57,7 @@
       "action": "output",
       "args": {
         "outputName": "geoip-only-ru-by-private.dat",
-        "wantedList": ["ripe_ru", "ripe_by", "private"]
+        "wantedList": ["ru", "by", "private"]
       }
     },
     {
@@ -108,8 +83,8 @@
       "args": {
         "outputName": "Country.mmdb",
         "overwriteList": [
-          "ripe_ru",
-          "ripe_by",
+          "ru",
+          "by",
           "private",
           "cloudflare",
           "cloudfront",
@@ -127,22 +102,22 @@
       "action": "output",
       "args": {
         "outputName": "Country-only-ru-by-private.mmdb",
-        "wantedList": ["ripe_ru", "ripe_by", "private"]
+        "wantedList": ["ru", "by", "private"]
       }
     },
-	{
+    {
       "type": "maxmindMMDB",
       "action": "output",
       "args": {
         "outputName": "geoip.mmdb",
         "wantedList": [
-			"ripe_ru", 
-			"ripe_by",
-            "google",
-            "telegram",
-			"facebook",
-			"private"
-		]
+          "ru",
+          "by",
+          "google",
+          "telegram",
+          "facebook",
+          "private"
+        ]
       }
     },
     {
